@@ -3,7 +3,7 @@ all: README.md
 clean: README.md
 	rm -fr $^
 
-README.md: macros.fnl
+README.md: soupmacs.fnl
 	./make-readme
 
 .PHONY: all clean
