@@ -35,16 +35,44 @@
   (walk-inner))
 
 (let
-  [ md "# Soup Macros\n\n> A collection of useful Fennel macros.\n\n## Macros"
+  [ md
+      "# Soup Macros
+
+> A collection of useful macros for [Fennel].
+
+## Usage
+
+Pass the `--add-macro-path` argument with the path to the `soupmacs.fnl` file
+to the `fennel` command in order to be able to import and use the macros. The
+following snippets exemplifies it.
+
+```bash
+fennel --add-macro-path $PATH_TO_SOUPMACS_FNL -c foo.fnl >foo.lua
+```
+
+```fennel
+; Contents of file \"foo.fnl\".
+(import-macros {: modcall} :soupmacs)
+(modcall :bar :baz (:quux :corge))
+```
+
+## Macros
+
+[Fennel]: https://fennel-lang.org"
     hn 3]
 
-  (var md md)
+  (var macs-md "")
 
-  (with-open [f (assert (io.open :macros.fnl :r))]
+  (with-open [f (assert (io.open :soupmacs.fnl :r))]
     (let
       [ text (assert (f:read :*all))
         parser (fennel.parser (fennel.string-stream text))]
-      (walk parser (partial make-md #(set md (.. md "\n\n" $1)) hn))))
+      (walk
+        parser
+        (partial make-md #(set macs-md (.. macs-md "\n\n" $1)) hn))))
 
-  (with-open [f (assert (io.open :README.md :w+))]
-    (f:write md)))
+  (let [(start end) (md:find "## Macros")]
+    (assert start)
+    (let [md (.. (md:sub 1 end) macs-md (md:sub (+ 1 end)))]
+      (with-open [f (assert (io.open :README.md :w+))]
+        (f:write md)))))

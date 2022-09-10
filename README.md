@@ -1,6 +1,22 @@
 # Soup Macros
 
-> A collection of useful Fennel macros.
+> A collection of useful macros for [Fennel].
+
+## Usage
+
+Pass the `--add-macro-path` argument with the path to the `soupmacs.fnl` file
+to the `fennel` command in order to be able to import and use the macros. The
+following snippets exemplifies it.
+
+```bash
+fennel --add-macro-path $PATH_TO_SOUPMACS_FNL -c foo.fnl >foo.lua
+```
+
+```fennel
+; Contents of file "foo.fnl".
+(import-macros {: modcall} :soupmacs)
+(modcall :bar :baz (:quux :corge))
+```
 
 ## Macros
 
@@ -68,3 +84,5 @@ Expands to function calls of `func` for each `...` submodules of `mod`.
 ;    (. (require :bar.quux) :foo))`.
 (subcalls :foo :bar :baz :quux)
 ```
+
+[Fennel]: https://fennel-lang.org
