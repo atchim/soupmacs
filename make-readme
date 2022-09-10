@@ -2,7 +2,7 @@
 
 (local fennel (require :fennel))
 
-(fn make-piece [f hn node]
+(fn make-md [f hn node]
   (when
     (and
       ; Performs some duck typing.
@@ -44,7 +44,7 @@
     (let
       [ text (assert (f:read :*all))
         parser (fennel.parser (fennel.string-stream text))]
-      (walk parser (partial make-piece #(set md (.. md "\n\n" $1)) hn))))
+      (walk parser (partial make-md #(set md (.. md "\n\n" $1)) hn))))
 
   (with-open [f (assert (io.open :README.md :w+))]
     (f:write md)))
