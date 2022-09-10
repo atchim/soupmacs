@@ -1,0 +1,50 @@
+#!/usr/bin/env fennel
+
+(local fennel (require :fennel))
+
+(fn make-piece [f hn node]
+  (when
+    (and
+      ; Performs some duck typing.
+      (fennel.list? node)
+      (not (fennel.sym? node))
+      (= :fn (tostring (. node 1)))
+      (fennel.sequence? (. node 3))
+      (= :string (type (. node 4))))
+    (let
+      [ name (tostring (. node 2))
+        params (fennel.view (. node 3))
+        params (if (= "{}" params) "[]" params)
+        docs (. node 4)]
+      (when (= 1 (name:find :M. 1 true)) ; Filter module functions.
+        (let
+          [ hashes (: :# :rep hn)
+            name (name:gsub :^M%. "")
+            header (.. hashes " `" name " " params "`\n")
+            (_ _ offset) (docs:find "\n\n(%s+)")
+            docs (if offset (docs:gsub (.. "\n" offset) "\n") docs)
+            docs (docs:gsub "\n(#+)" #(.. "\n" hashes $1))]
+          (f (.. header "\n" docs)))))))
+
+(fn walk [parser f]
+  (fn walk-inner []
+    (let [(ok? node) (parser)]
+      (when ok?
+        (f node)
+        (walk-inner))))
+  (walk-inner))
+
+(let
+  [ md "# Soup Macros\n\n> A collection of useful Fennel macros.\n\n## Macros"
+    hn 3]
+
+  (var md md)
+
+  (with-open [f (assert (io.open :macros.fnl :r))]
+    (let
+      [ text (assert (f:read :*all))
+        parser (fennel.parser (fennel.string-stream text))]
+      (walk parser (partial make-piece #(set md (.. md "\n\n" $1)) hn))))
+
+  (with-open [f (assert (io.open :README.md :w+))]
+    (f:write md)))
