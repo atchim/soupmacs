@@ -1,7 +1,7 @@
 all: README.md
 
-clean:
-	rm -fr README.md
+clean: README.md
+	rm -fr $^
 
 README.md: macros.fnl
 	./make-readme
