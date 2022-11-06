@@ -43,8 +43,8 @@
 ## Usage
 
 Pass the `--add-macro-path` argument with the path to the `soupmacs.fnl` file
-to the `fennel` command in order to be able to import and use the macros. The
-following snippets exemplify that.
+to the `fennel` command to be able to import and use the macros. The following
+snippets exemplify that.
 
 ```bash
 fennel --add-macro-path $PATH_TO_SOUPMACS_FNL -c foo.fnl >foo.lua

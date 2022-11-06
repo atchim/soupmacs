@@ -5,8 +5,8 @@
 ## Usage
 
 Pass the `--add-macro-path` argument with the path to the `soupmacs.fnl` file
-to the `fennel` command in order to be able to import and use the macros. The
-following snippets exemplify that.
+to the `fennel` command to be able to import and use the macros. The following
+snippets exemplify that.
 
 ```bash
 fennel --add-macro-path $PATH_TO_SOUPMACS_FNL -c foo.fnl >foo.lua
@@ -31,8 +31,8 @@ its content is unpacked as the arguments to the function. For instance, using
 `...` has no argument, the macro expands to a function call, without
 arguments, of the object returned by `mod`.
 
-Non-last arguments in `...` are treated as the accesses needed in order to
-call the function. For example, using `(modcall :foo :bar :baz)` expands to
+Non-last arguments in `...` are treated as the accesses needed to call the
+function. For example, using `(modcall :foo :bar :baz)` expands to
 `((. (require :foo) :bar) :baz)`.
 
 #### Examples
@@ -41,13 +41,14 @@ call the function. For example, using `(modcall :foo :bar :baz)` expands to
 (modcall :foo) ; Expands to `((require :foo))`.
 (modcall :foo :bar) ; Expands to `((require :foo) :bar)`.
 (modcall :foo (:bar)) ; Expands to the same as the last one.
+(modcall :foo :bar ()) ; Expands to `((. (require :foo) :bar))`.
 (modcall :foo :bar :baz) ; Expands to `((. (require :foo) :bar) :baz)`.
 (modcall :foo (:bar :baz)) ; Expands to `((require :foo) :bar :baz)`.
 ```
 
 ### `modget? [mod ...]`
 
-Expands to an access of `mod` and, optionally its `...` nested items.
+Expands to access of `mod` and, optionally its `...` nested items.
 
 #### Examples
 
@@ -55,6 +56,24 @@ Expands to an access of `mod` and, optionally its `...` nested items.
 (modget? :foo) ; Expands to `(require :foo)`.
 (modget? :foo :bar) ; Expands to `(?. (require :foo) :bar)`.
 (modget? :foo :bar :baz) ; Expands to `(?. (require :foo) :bar :baz)`.
+```
+
+### `nonnil [t]`
+
+Expands to a filtering of non-nil values from `t` to a new table.
+
+#### Note
+
+If `t` has negative-indexed values, the returned table is not guaranteed to
+be sorted.
+
+#### Examples
+
+```fennel
+(let
+  [ t (nonnil {-1 -1 1 1 2 nil 3 3 5 5})
+    sum (accumulate [sum 0 _ n (ipairs t)] (+ sum n))]
+  (assert (= sum 8)))
 ```
 
 ### `oneof? [x ...]`
@@ -73,7 +92,14 @@ Expands to an `or` form, like `(or (= x y) (= x z) ...)`.
 
 Expands to an `if` expression that returns a non-nil `val` or its `def`.
 
-`val` is bound to a local variable in order to avoid evaluating it twice.
+#### Examples
+
+```fennel
+(let [t {}] (assert (= (ordef nil t) t)))
+(assert (= (ordef false true) false))
+(assert (= (ordef 0 1) 0))
+(assert (= (ordef "" :foo) ""))
+```
 
 ### `subcalls [func mod ...]`
 
