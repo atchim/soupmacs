@@ -94,7 +94,7 @@
   (assert (= (ordef 0 1) 0))
   (assert (= (ordef \"\" :foo) \"\"))
   ```"
-  `(let [val# ,val] (if (not= nil val#) val# ,def)))
+  `(if (not= nil ,val) ,val ,def))
 
 (fn M.subcalls [func mod ...]
   "Expands to function calls of `func` for each `...` submodules of `mod`.
@@ -114,5 +114,18 @@
     ,(unpack
       (icollect [_ sub (ipairs [...])]
         `((-> ,(.. mod :. sub) (require) (. ,func)))))))
+
+(fn M.ty= [x ...]
+  "Expands returning whether `x` has one of given `...` types.
+
+  # Examples
+
+  ```fennel
+  (assert (not (ty= 0 :boolean)))
+  (assert (ty= 0 :number))
+  (assert (ty= {} :nil :table))
+  (assert (not (ty= 0 :boolean :string :table)))
+  ```"
+  `(let [ty# (type ,x)] ,(M.oneof? `ty# ...)))
 
 M

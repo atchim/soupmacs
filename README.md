@@ -117,4 +117,17 @@ Expands to function calls of `func` for each `...` submodules of `mod`.
 (subcalls :foo :bar :baz :quux)
 ```
 
+### `ty= [x ...]`
+
+Expands returning whether `x` has one of given `...` types.
+
+#### Examples
+
+```fennel
+(assert (not (ty= 0 :boolean)))
+(assert (ty= 0 :number))
+(assert (ty= {} :nil :table))
+(assert (not (ty= 0 :boolean :string :table)))
+```
+
 [Fennel]: https://fennel-lang.org
