@@ -1,129 +1,143 @@
 (local M {})
 
-(fn M.modcall [mod ...]
-  "Expands to a function call into `mod`.
+(lambda M.call [head ...]
+  "Shorthand for accessing and calling a function.
 
-  `mod` must be a string naming the module. The last argument in `...` always
-  stands for the argument to be passed to the function call. If it is a list,
-  its content is unpacked as the arguments to the function. For instance, using
-  `(modcall :foo (:bar :baz))` expands to `((require :foo) :bar :baz)`. If
-  `...` has no argument, the macro expands to a function call, without
-  arguments, of the object returned by `mod`.
+  `head` is the base to access the function. Non-last arguments of `...` are
+  treated as additional accesses needed to call the function. If `...` has no
+  argument, the macro expands to a function call of `head` with no arguments.
 
-  Non-last arguments in `...` are treated as the accesses needed to call the
-  function. For example, using `(modcall :foo :bar :baz)` expands to
-  `((. (require :foo) :bar) :baz)`.
+  The last argument in `...` is the argument to be passed to the function call.
+  If it is a sequence with zero or more than one items, its content is unpacked
+  as the arguments to the function.
 
   # Examples
 
   ```fennel
-  (modcall :foo) ; Expands to `((require :foo))`.
-  (modcall :foo :bar) ; Expands to `((require :foo) :bar)`.
-  (modcall :foo (:bar)) ; Expands to the same as the last one.
-  (modcall :foo :bar ()) ; Expands to `((. (require :foo) :bar))`.
-  (modcall :foo :bar :baz) ; Expands to `((. (require :foo) :bar) :baz)`.
-  (modcall :foo (:bar :baz)) ; Expands to `((require :foo) :bar :baz)`.
+  (import-macros {: call} :soupmacs)
+  (assert (= :number (call type 0)))
+  (assert (= :table (call type [0])))
+  (assert (= 3 (call math :max [2 3 -1 0])))
+  (assert (= :foo (call table :concat [:foo])))
+  (assert (= :foo.bar (call table :concat [[:foo :bar] :.])))
+  (let [foo {:bar {:baz #:baz}} bar :bar]
+    ;(assert (= :baz (call foo bar :baz))) ; This does not work.
+    (assert (= :baz (call foo bar :baz []))))
   ```"
 
   (let
-    [ args [...]
-      nargs (length args)
-      fargs (. args nargs)
-      fstems [(unpack args 1 (- nargs 1))]]
+    [ vargs [...]
+      vlen (length vargs)
+      body [(unpack vargs 1 (- vlen 1))]
+      tail (. vargs vlen)]
+    `((. ,head ,(unpack body))
+      ,(if (and (sequence? tail) (not= 1 (length tail))) (unpack tail) tail))))
+
+(lambda M.modcall [mod ...]
+  "Shorthand for both accessing and calling a function of `mod`.
+
+  `mod` is the name of the module. Non-last arguments in `...` are treated as
+  table field accesses needed to call the function. If `...` has no argument,
+  the macro expands to a function call, without arguments, of the object
+  returned by `mod`.
+
+  The last argument in `...` always stands for the argument to be passed to the
+  function call. If it is a sequence with zero or more than one items, its
+  content is unpacked as the arguments to the function.
+
+  # Examples
+
+  ```fennel
+  (import-macros {: modcall} :soupmacs)
+  (local {: like?} (require :examples.utils))
+
+  (assert (like? (modcall :examples.foo) []))
+  (assert (like? (modcall :examples.foo :bar) [:bar]))
+  (assert (like? (modcall :examples.foo [:bar]) [[:bar]]))
+  (assert (like? (modcall :examples.foo [:bar :baz]) [:bar :baz]))
+  (assert (like? (modcall :examples.foo :bar []) []))
+  (assert (like? (modcall :examples.foo :bar :baz) [:baz]))
+  ```"
+
+  (let
+    [ vargs [...]
+      vlen (length vargs)
+      body [(unpack vargs 1 (- vlen 1))]
+      tail (. vargs vlen)]
     `((->
         (require ,mod)
-        ,(unpack (icollect [_ fstem# (ipairs fstems)] `(. ,fstem#))))
-      ,(if (list? fargs) (unpack fargs) fargs))))
+        ,(unpack (icollect [_ ix# (ipairs body)] `(. ,ix#))))
+      ,(if (and (sequence? tail) (not= 1 (length tail))) (unpack tail) tail))))
 
-(fn M.modget? [mod ...]
-  "Expands to access of `mod` and, optionally its `...` nested items.
-
-  # Examples
-
-  ```fennel
-  (modget? :foo) ; Expands to `(require :foo)`.
-  (modget? :foo :bar) ; Expands to `(?. (require :foo) :bar)`.
-  (modget? :foo :bar :baz) ; Expands to `(?. (require :foo) :bar :baz)`.
-  ```"
-  `(-> (require ,mod) (?. ,...)))
-
-(fn M.nonnil [t]
-  "Expands to a filtering of non-nil values from `t` to a new table.
-
-  # Note
-
-  If `t` has negative-indexed values, the returned table is not guaranteed to
-  be sorted.
+(lambda M.modget [mod ...]
+  "Shorthand for getting an item in `mod`.
 
   # Examples
 
   ```fennel
-  (let
-    [ t (nonnil {-1 -1 1 1 2 nil 3 3 5 5})
-      sum (accumulate [sum 0 _ n (ipairs t)] (+ sum n))]
-    (assert (= sum 8)))
+  (import-macros {: modget} :soupmacs)
+  (assert (= :table (type (modget :examples.foo))))
+  (assert (= :table (type (modget :examples.foo :bar))))
+  (assert (= :table (type (modget :examples.foo :bar :baz))))
   ```"
+  `(-> (require ,mod) (. ,...)))
 
-  `(let [t# ,t non-nil# {}]
-     (each [k# v# (values next t#)]
-       (match (type k#)
-         :number (table.insert non-nil# v#)
-         _# (tset non-nil# k# v#)))
-     non-nil#))
-
-(fn M.oneof? [x ...]
-  "Expands to an `or` form, like `(or (= x y) (= x z) ...)`.
+(lambda M.nonnil [...]
+  "Shorthand for filtering non-nil values of `...` to a new table.
 
   # Examples
 
   ```fennel
-  (oneof? x y) ; Expands to `(= x y)`.
-  (oneof? x y z) ; Expands to `(or (= x y) (= x z))`.
-  (oneof? x y z a) ; Expands to `(or (= x y) (= x z) (= x a))`.
+  (import-macros {: nonnil} :soupmacs)
+  (fn sum [t] (accumulate [sum 0 _ n (ipairs t)] (+ sum n)))
+  (assert (= 8 (sum (nonnil -1 1 nil 3 5))))
   ```"
+  `(icollect [_# v# (values next [,...])] v#))
+
+(lambda M.oneof? [x ...]
+  "Shorthand for returning if `x` is equal to some value in `...`.
+
+  # Examples
+
+  ```fennel
+  (import-macros {: oneof?} :soupmacs)
+  (let [age 25 country :Hawaii name :McLOVIN]
+    (assert (oneof? 25 age country name))
+    (assert (not (oneof? :McINLOV age country name)))
+    (assert (not (oneof? :Kawaii age country name))))
+  ```
+
+  # Caveats
+
+  Avoid passing table literals as arguments, since it is likely that they will
+  not match. Also, passing a table literal as argument for the `x` parameter
+  results in the table literal being evaluated `n` times, where `n` is the
+  number of arguments of `...`."
   `(or ,(unpack (icollect [_ y (ipairs [...])] `(= ,x ,y)))))
 
-(fn M.ordef [val def]
-  "Expands to an `if` expression that returns a non-nil `val` or its `def`.
+(lambda M.ordef [val def]
+  "Shorthand for returning non-nil `val` or a `def` one.
 
   # Examples
 
   ```fennel
-  (let [t {}] (assert (= (ordef nil t) t)))
+  (import-macros {: ordef} :soupmacs)
+  (let [?t nil t {}] (assert (= t (ordef ?t t))))
   (assert (= (ordef false true) false))
   (assert (= (ordef 0 1) 0))
   (assert (= (ordef \"\" :foo) \"\"))
   ```"
   `(if (not= nil ,val) ,val ,def))
 
-(fn M.subcalls [func mod ...]
-  "Expands to function calls of `func` for each `...` submodules of `mod`.
+(lambda M.ty= [x ...]
+  "Shorthand for returning whether `x` has one of given `...` types.
 
   # Examples
 
   ```fennel
-  (subcalls :foo :bar :baz) ; Expands to `(. (require :foo.bar) :baz)`.
-
-  ; This expands to
-  ; `(do
-  ;    (. (require :bar.baz) :foo)
-  ;    (. (require :bar.quux) :foo))`.
-  (subcalls :foo :bar :baz :quux)
-  ```"
-  `(do
-    ,(unpack
-      (icollect [_ sub (ipairs [...])]
-        `((-> ,(.. mod :. sub) (require) (. ,func)))))))
-
-(fn M.ty= [x ...]
-  "Expands returning whether `x` has one of given `...` types.
-
-  # Examples
-
-  ```fennel
-  (assert (not (ty= 0 :boolean)))
+  (import-macros {: ty=} :soupmacs)
   (assert (ty= 0 :number))
-  (assert (ty= {} :nil :table))
+  (assert (ty= [] :nil :table))
   (assert (not (ty= 0 :boolean :string :table)))
   ```"
   `(let [ty# (type ,x)] ,(M.oneof? `ty# ...)))
