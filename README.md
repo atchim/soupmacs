@@ -1,38 +1,138 @@
-# Soup Macros
+# 🍲 Soup Macros
 
 > A collection of useful macros for [Fennel].
 
-## Macros
+## ✔️ Assertion
 
-### `call [head ...]`
+### `assert-not [x ?msg]` 
 
-Shorthand for accessing and calling a function.
-
-`head` is the base to access the function. Non-last arguments of `...` are
-treated as additional accesses needed to call the function. If `...` has no
-argument, the macro expands to a function call of `head` with no arguments.
-
-The last argument in `...` is the argument to be passed to the function call.
-If it is a sequence with zero or more than one items, its content is unpacked
-as the arguments to the function.
+Expands to an assertion that `x` evaluates to `false`, with optional `?msg`.
 
 #### Examples
 
 ```fennel
-(import-macros {: call} :soupmacs)
-(assert (= :number (call type 0)))
-(assert (= :table (call type [0])))
-(assert (= 3 (call math :max [2 3 -1 0])))
-(assert (= :foo (call table :concat [:foo])))
-(assert (= :foo.bar (call table :concat [[:foo :bar] :.])))
-(let [foo {:bar {:baz #:baz}} bar :bar]
-  ;(assert (= :baz (call foo bar :baz))) ; This does not work.
-  (assert (= :baz (call foo bar :baz []))))
+(import-macros {: assert-not : assert=} :soupmacs)
+
+; Fails without message.
+(let [f #(assert-not true) (ok? errmsg) (pcall f)]
+  (assert-not ok?)
+  (assert= "assertion failed!" errmsg))
+
+; Fails with message.
+(let [f #(assert-not 0 "not false") (ok? errmsg) (pcall f)]
+  (assert-not ok?)
+  (assert= "not false" errmsg))
+
+; Passes.
+(let [f #(assert-not false) (ok? retval) (pcall f)]
+  (assert ok?)
+  ; In this case `retval` is the value returned from the assertion.
+  (assert= true retval))
 ```
 
-### `modcall [mod ...]`
+### `assert= [x y ?msg]` 
 
-Shorthand for both accessing and calling a function of `mod`.
+Expands to an assertion that `x` is equal to `y`, with optional `?msg`.
+
+#### Examples
+
+```fennel
+(import-macros {: assert-not : assert=} :soupmacs)
+
+; Fails without message.
+(let [f #(assert= 0 :0) (ok? errmsg) (pcall f)]
+  (assert-not ok?)
+  (assert= "assertion failed!" errmsg))
+
+; Fails with message.
+(let [f #(assert= 0 false "not the same") (ok? errmsg) (pcall f)]
+  (assert-not ok?)
+  (assert= "not the same" errmsg))
+
+; Passes.
+(let [f #(assert= 3 (tonumber :3)) (ok? retval) (pcall f)]
+  (assert ok?)
+  (assert= true retval))
+```
+
+### `assert-not= [x y ?msg]` 
+
+Expands to an assertion that `x` is not equal to `y`, with optional `?msg`.
+
+This works similar to [`assert=`](#assert).
+
+## 🎚 Boolean Evaluation
+
+### `oneof? [x ...]` 
+
+Expands to an expression returning if `x` is equal to some value in `...`.
+
+#### Examples
+
+```fennel
+(import-macros {: oneof?} :soupmacs)
+(let [age 25 country :Hawaii name :McLOVIN]
+  (assert (oneof? 25 age country name))
+  (assert (not (oneof? :McINLOV age country name)))
+  (assert (not (oneof? :Kawaii age country name))))
+```
+
+#### Note
+
+Do not pass table literals as arguments, since they will never match. Also,
+passing a table literal as argument for the `x` parameter results in the
+table literal being evaluated `n` times, where `n` is the number of arguments
+of `...`.
+
+### `ty= [x ...]` 
+
+Expands to an expresssion returning if `x` has one of given `...` types.
+
+#### Examples
+
+```fennel
+(import-macros {: ty=} :soupmacs)
+(assert (ty= 0 :number))
+(assert (ty= [] :nil :table))
+(assert (not (ty= 0 :boolean :string :table)))
+```
+
+## 📐 Math
+
+### `dec [x]` 
+
+Expands to an decrementation of `x` by 1.
+
+#### Examples
+
+```fennel
+(import-macros {: assert= : dec} :soupmacs)
+(assert= 0 (dec 1))
+(let [x 0] (assert= -1 (dec x)))
+```
+
+### `inc [x]` 
+
+Expands to an incrementation of `x` by 1.
+
+#### Examples
+
+```fennel
+(import-macros {: assert= : inc} :soupmacs)
+(assert= 1 (inc 0))
+(let [x -1] (assert= 0 (inc x)))
+```
+
+#### Note
+
+The use of this macro is discouraged since using `(+ 1 x)` is more clear and
+takes the same amount of characters.
+
+## 🧩 Module Related
+
+### `modcall [mod ...]` 
+
+Expands to an expression that both accesses and calls a function of `mod`.
 
 `mod` is the name of the module. Non-last arguments in `...` are treated as
 table field accesses needed to call the function. If `...` has no argument,
@@ -46,33 +146,96 @@ content is unpacked as the arguments to the function.
 #### Examples
 
 ```fennel
-(import-macros {: modcall} :soupmacs)
-(local {: like?} (require :examples.utils))
+; Content of `bubblegum-machine.fnl`
+(fn dispense [flavor coins]
+  (if (and coins (>= coins 1))
+    (print
+      (->
+        "Dispensing bubblegum with flavor %s for %d coins..."
+        (: :format flavor coins)))
+    (print "Insert at least 1 coin!")))
 
-(assert (like? (modcall :examples.foo) []))
-(assert (like? (modcall :examples.foo :bar) [:bar]))
-(assert (like? (modcall :examples.foo [:bar]) [[:bar]]))
-(assert (like? (modcall :examples.foo [:bar :baz]) [:bar :baz]))
-(assert (like? (modcall :examples.foo :bar []) []))
-(assert (like? (modcall :examples.foo :bar :baz) [:baz]))
+(local cheating
+  { :dispense
+    (fn [flavor]
+      (print
+        (->
+          "Dispensing bubblegum with flavor %s for free..."
+          (: :format flavor))))})
+
+(setmetatable
+  {}
+  { :__index {: cheating : dispense}
+    :__call #(print "This is a bubblegum machine! Do not cheat!")})
 ```
 
-### `modget [mod ...]`
+```fennel
+(import-macros {: modcall} :soupmacs)
 
-Shorthand for getting an item in `mod`.
+(modcall :bubblegum-machine)
+;> This is a bubblegum machine! Do not cheat!
+
+(modcall :bubblegum-machine :dispense :original)
+;> Insert at least 1 coin!
+
+(modcall :bubblegum-machine :dispense [:original 2])
+;> Dispensing bubblegum with flavor original for 2 coins...
+
+(modcall :bubblegum-machine :cheating :dispense :watermelon)
+;> Dispensing bubblegum with flavor watermelon for free...
+```
+
+### `modget [mod ...]` 
+
+Expands to an expression getting an item in `mod`.
 
 #### Examples
 
 ```fennel
-(import-macros {: modget} :soupmacs)
-(assert (= :table (type (modget :examples.foo))))
-(assert (= :table (type (modget :examples.foo :bar))))
-(assert (= :table (type (modget :examples.foo :bar :baz))))
+; Content of `foo.fnl`
+{:bar {:baz :baz}}
 ```
 
-### `nonnil [...]`
+```fennel
+(import-macros {: modget} :soupmacs)
+(local baz (modget :foo :bar :baz))
+```
 
-Shorthand for filtering non-nil values of `...` to a new table.
+## 🧵 String Manipulation
+
+### `concat [sep ...]` 
+
+Returns `...` concatenated with `sep`.
+
+#### Examples
+
+```fennel
+(import-macros {: assert= : concat} :soupmacs)
+(assert= :foo.bar.baz (concat :. :foo :bar :baz))
+```
+
+#### Note
+
+All arguments passed to this macro must be string literals.
+
+### `lines [...]` 
+
+Returns `...` concatenated with "\n".
+
+This is an alias to `(concat "\n" ...)`. See [`concat`](#concat-sep-).
+
+#### Examples
+
+```fennel
+(import-macros {: assert= : lines} :soupmacs)
+(assert= "foo\nbar\nbaz" (lines :foo :bar :baz))
+```
+
+## 🧰 Misc
+
+### `nonnil [...]` 
+
+Expands to a expression filtering non-nil values of `...` to a new table.
 
 #### Examples
 
@@ -82,30 +245,9 @@ Shorthand for filtering non-nil values of `...` to a new table.
 (assert (= 8 (sum (nonnil -1 1 nil 3 5))))
 ```
 
-### `oneof? [x ...]`
+### `ordef [val def]` 
 
-Shorthand for returning if `x` is equal to some value in `...`.
-
-#### Examples
-
-```fennel
-(import-macros {: oneof?} :soupmacs)
-(let [age 25 country :Hawaii name :McLOVIN]
-  (assert (oneof? 25 age country name))
-  (assert (not (oneof? :McINLOV age country name)))
-  (assert (not (oneof? :Kawaii age country name))))
-```
-
-#### Caveats
-
-Avoid passing table literals as arguments, since it is likely that they will
-not match. Also, passing a table literal as argument for the `x` parameter
-results in the table literal being evaluated `n` times, where `n` is the
-number of arguments of `...`.
-
-### `ordef [val def]`
-
-Shorthand for returning non-nil `val` or a `def` one.
+Expands to an expression returning non-nil `val` or a `def` one.
 
 #### Examples
 
@@ -117,17 +259,8 @@ Shorthand for returning non-nil `val` or a `def` one.
 (assert (= (ordef "" :foo) ""))
 ```
 
-### `ty= [x ...]`
+### `whenot [cond ...]` 
 
-Shorthand for returning whether `x` has one of given `...` types.
-
-#### Examples
-
-```fennel
-(import-macros {: ty=} :soupmacs)
-(assert (ty= 0 :number))
-(assert (ty= [] :nil :table))
-(assert (not (ty= 0 :boolean :string :table)))
-```
+Expands to `(when (not cond) ...)`.
 
 [Fennel]: https://fennel-lang.org
