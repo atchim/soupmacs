@@ -101,32 +101,29 @@ Expands to an expresssion returning if `x` has one of given `...` types.
 
 ### `dec [x]` 
 
-Expands to an decrementation of `x` by 1.
+Expands to an expression decrementing `x` by 1 and returning it.
 
 #### Examples
 
 ```fennel
 (import-macros {: assert= : dec} :soupmacs)
-(assert= 0 (dec 1))
-(let [x 0] (assert= -1 (dec x)))
+(var x 0)
+(assert= -1 (dec x))
+(assert= -1 x)
 ```
 
 ### `inc [x]` 
 
-Expands to an incrementation of `x` by 1.
+Expands to an expression incrementing `x` by 1 and returning it.
 
 #### Examples
 
 ```fennel
 (import-macros {: assert= : inc} :soupmacs)
-(assert= 1 (inc 0))
-(let [x -1] (assert= 0 (inc x)))
+(var x 0)
+(assert= 1 (inc x))
+(assert= 1 x)
 ```
-
-#### Note
-
-The use of this macro is discouraged since using `(+ 1 x)` is more clear and
-takes the same amount of characters.
 
 ## 🧩 Module Related
 
