@@ -143,6 +143,7 @@
 
   ```fennel-no-run
   ; Content of `bubblegum-machine.fnl`
+
   (fn dispense [flavor coins]
     (if (and coins (>= coins 1))
       (print
