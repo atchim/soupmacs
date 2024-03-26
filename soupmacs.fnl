@@ -4,98 +4,86 @@
 
 ;; ## ✔️ Assertion
 
-(fn assert-not [x ?msg]
-  "Expands to an assertion that `x` evaluates to `false`, with optional `?msg`.
+(fn assert-lazy [cond err-msg-cb]
+  "Expands to a lazy assertion-like expression.
+
+  The expanded expression evaluates the truthiness of `cond`. If `cond` is
+  truthy, it's returned; otherwise, the error message is generated using
+  `err-msg-cb` and an error is raised with that message.
+
+  This can be useful to defer the evaluation of the error message until it's
+  actually needed.
 
   # Examples
 
   ```fennel
-  (import-macros {: assert-not : assert=} :soupmacs)
+  (import-macros {: assert-lazy} :soupmacs)
 
-  ; Fails without message.
-  (let [f #(assert-not true) (ok? errmsg) (pcall f)]
-    (assert-not ok?)
-    (assert= \"assertion failed!\" errmsg))
-
-  ; Fails with message.
-  (let [f #(assert-not 0 \"not false\") (ok? errmsg) (pcall f)]
-    (assert-not ok?)
-    (assert= \"not false\" errmsg))
-
-  ; Passes.
-  (let [f #(assert-not false) (ok? retval) (pcall f)]
-    (assert ok?)
-    ; In this case `retval` is the value returned from the assertion.
-    (assert= true retval))
+  (let
+    [ key :credentials
+      user {:name :John :surname :Doe}
+      err-msg-cb #(: \"user %s doesn't have %s\" :format user.name key)
+      (ok? err-msg) (pcall #(assert-lazy (. user key) err-msg-cb))]
+    (assert (= false ok?))
+    (assert (err-msg:match \"^.+: user John doesn't have credentials$\")))
   ```"
-  `(assert (not ,x) ,?msg))
+  `(if ,cond ,cond (error (,err-msg-cb))))
 
-(fn assert= [x y ?msg]
-  "Expands to an assertion that `x` is equal to `y`, with optional `?msg`.
+;; ## ⁉️ Boolean Evaluation
 
-  # Examples
-
-  ```fennel
-  (import-macros {: assert-not : assert=} :soupmacs)
-
-  ; Fails without message.
-  (let [f #(assert= 0 :0) (ok? errmsg) (pcall f)]
-    (assert-not ok?)
-    (assert= \"assertion failed!\" errmsg))
-
-  ; Fails with message.
-  (let [f #(assert= 0 false \"not the same\") (ok? errmsg) (pcall f)]
-    (assert-not ok?)
-    (assert= \"not the same\" errmsg))
-
-  ; Passes.
-  (let [f #(assert= 3 (tonumber :3)) (ok? retval) (pcall f)]
-    (assert ok?)
-    (assert= true retval))
-  ```"
-  `(assert (= ,x ,y) ,?msg))
-
-(fn assert-not= [x y ?msg]
-  "Expands to an assertion that `x` is not equal to `y`, with optional `?msg`.
-
-  This works similar to [`assert=`](#assert)."
-  `(assert (not (= ,x ,y)) ,?msg))
-
-;; ## 🎚 Boolean Evaluation
-
-(fn oneof? [x ...]
-  "Expands to an expression returning if `x` is equal to some value in `...`.
+(fn any-of? [x ...]
+  "Expands to an expression returning if `x` is equal to any value in `...`.
 
   # Examples
 
   ```fennel
-  (import-macros {: oneof?} :soupmacs)
+  (import-macros {: any-of?} :soupmacs)
+
   (let [age 25 country :Hawaii name :McLOVIN]
-    (assert (oneof? 25 age country name))
-    (assert (not (oneof? :McINLOV age country name)))
-    (assert (not (oneof? :Kawaii age country name))))
+    (assert (any-of? 25 age country name))
+    (assert (not (any-of? :McINLOV age country name)))
+    (assert (not (any-of? :Kawaii age country name))))
   ```
 
   # Note
 
-  Do not pass table literals as arguments, since they will never match. Also,
-  passing a table literal as argument for the `x` parameter results in the
-  table literal being evaluated `n` times, where `n` is the number of arguments
-  of `...`."
+  Table literals should be avoided to be passed as arguments since they will
+  never match. Additionally, when using a table literal as an argument for the
+  `x` parameter, it will be evaluated `n` times, where `n` is the number of
+  arguments in `...`."
   `(or ,(unpack (icollect [_ y (ipairs [...])] `(= ,x ,y)))))
 
-(fn ty= [x ...]
-  "Expands to an expresssion returning if `x` has one of given `...` types.
+;; ## 🆗 Defaults
+
+(fn or-default [value default]
+  "Expands to an expression returning non-nil `value` or a `default` one.
 
   # Examples
 
   ```fennel
-  (import-macros {: ty=} :soupmacs)
-  (assert (ty= 0 :number))
-  (assert (ty= [] :nil :table))
-  (assert (not (ty= 0 :boolean :string :table)))
+  (import-macros {: or-default} :soupmacs)
+
+  (let [foo :foo bar nil]
+    (assert (= :foo (or-default foo :bar)))
+    (assert (= :baz (or-default bar :baz))))
   ```"
-  `(let [ty# (type ,x)] ,(oneof? `ty# ...)))
+  `(if (not= nil ,value) ,value ,default))
+
+(fn or-default-lazy [value default-cb]
+  "Like `or-default`, but evaluates `default-cb` when `value` is `nil`.
+
+  # Examples
+
+  ```fennel
+  (import-macros {: or-default-lazy} :soupmacs)
+
+  (let
+    [ sqrt-of-3-fn #(math.sqrt 3)
+      lazy-fn #(-> [:I :am :lazy!] (table.concat \" \"))]
+    (assert (= 0 (or-default-lazy 0 sqrt-of-3-fn)))
+    (assert (= \"I am lazy!\" (or-default-lazy nil lazy-fn))))
+  ```"
+  `(if (not= nil ,value) ,value (,default-cb)))
 
 ;; ## 📐 Math
 
@@ -105,10 +93,10 @@
   # Examples
 
   ```fennel
-  (import-macros {: assert= : dec} :soupmacs)
+  (import-macros {: dec} :soupmacs)
   (var x 0)
-  (assert= -1 (dec x))
-  (assert= -1 x)
+  (assert (= -1 (dec x)))
+  (assert (= -1 x))
   ```"
   `(do (set ,x (- ,x 1)) ,x))
 
@@ -118,171 +106,95 @@
   # Examples
 
   ```fennel
-  (import-macros {: assert= : inc} :soupmacs)
+  (import-macros {: inc} :soupmacs)
   (var x 0)
-  (assert= 1 (inc x))
-  (assert= 1 x)
+  (assert (= 1 (inc x)))
+  (assert (= 1 x))
   ```"
   `(do (set ,x (+ 1 ,x)) ,x))
 
 ;; ## 🧩 Module Related
 
-(fn modcall [mod ...]
-  "Expands to an expression that both accesses and calls a function of `mod`.
+(fn --> [mod ...]
+  "Expands to an access (and optionally a call) of an item of `mod`.
 
-  `mod` is the name of the module. Non-last arguments in `...` are treated as
-  table field accesses needed to call the function. If `...` has no argument,
-  the macro expands to a function call, without arguments, of the object
-  returned by `mod`.
+  This macro is a shorthand for accessing the module (`mod`). Additional
+  arguments (`...`) can be provided to specify nested accesses. If the last
+  argument is a sequence, the expanded code evaluates to a function call of the
+  accessed item, and the content of the sequence is passed as arguments.
 
-  The last argument in `...` always stands for the argument to be passed to the
-  function call. If it is a sequence with zero or more than one items, its
-  content is unpacked as the arguments to the function.
+  It might be leveraged to avoid the verbosity of importing, accessing and
+  calling an item in Fennel.
 
   # Examples
 
   ```fennel-no-run
-  ; Content of `bubblegum-machine.fnl`
+  (import-macros {: -->} :soupmacs)
 
-  (fn dispense [flavor coins]
-    (if (and coins (>= coins 1))
-      (print
-        (->
-          \"Dispensing bubblegum with flavor %s for %d coins...\"
-          (: :format flavor coins)))
-      (print \"Insert at least 1 coin!\")))
-
-  (local cheating
-    { :dispense
-      (fn [flavor]
-        (print
-          (->
-            \"Dispensing bubblegum with flavor %s for free...\"
-            (: :format flavor))))})
-
-  (setmetatable
-    {}
-    { :__index {: cheating : dispense}
-      :__call #(print \"This is a bubblegum machine! Do not cheat!\")})
-  ```
-
-  ```fennel-no-run
-  (import-macros {: modcall} :soupmacs)
-
-  (modcall :bubblegum-machine)
-  ;> This is a bubblegum machine! Do not cheat!
-
-  (modcall :bubblegum-machine :dispense :original)
-  ;> Insert at least 1 coin!
-
-  (modcall :bubblegum-machine :dispense [:original 2])
-  ;> Dispensing bubblegum with flavor original for 2 coins...
-
-  (modcall :bubblegum-machine :cheating :dispense :watermelon)
-  ;> Dispensing bubblegum with flavor watermelon for free...
-  ```"
+  ; Macro Call                 | Lua Equivalent
+  (--> :foo)                   ; require'foo'
+  (--> :foo :bar)              ; require'foo'.bar
+  (--> :foo :bar [])           ; require'foo'.bar()
+  (--> :foo :bar [[]])         ; require'foo'.bar{}
+  (--> :foo :bar [:baz :quux]) ; require'foo'.bar('baz', 'quux')
+  ````"
 
   (let
-    [ vargs [...]
-      vlen (length vargs)
-      body [(unpack vargs 1 (- vlen 1))]
-      tail (. vargs vlen)]
-    `((->
+    [ args [...]
+      args-len (length args)
+      last-arg (. args args-len)
+      call-args (sequence? last-arg)
+      accesses [(unpack args 1 (when call-args (- args-len 1)))]
+      full-access
+      `(->
         (require ,mod)
-        ,(unpack (icollect [_ ix# (ipairs body)] `(. ,ix#))))
-      ,(if (and (sequence? tail) (not= 1 (length tail))) (unpack tail) tail))))
-
-(fn modget [mod ...]
-  "Expands to an expression getting an item in `mod`.
-
-  # Examples
-
-  ```fennel-no-run
-  ; Content of `foo.fnl`
-  {:bar {:baz :baz}}
-  ```
-
-  ```fennel-no-run
-  (import-macros {: modget} :soupmacs)
-  (local baz (modget :foo :bar :baz))
-  ```"
-  `(-> (require ,mod) (. ,...)))
+        ,(unpack (icollect [_ access# (ipairs accesses)] `(. ,access#))))]
+    (if call-args `(,full-access ,(unpack call-args)) full-access)))
 
 ;; ## 🧵 String Manipulation
 
-(fn concat [sep ...]
-  "Returns `...` concatenated with `sep`.
-
-  # Examples
-
-  ```fennel
-  (import-macros {: assert= : concat} :soupmacs)
-  (assert= :foo.bar.baz (concat :. :foo :bar :baz))
-  ```
-
-  # Note
-
-  All arguments passed to this macro must be string literals."
-  (tostring (table.concat [...] sep)))
-
 (fn lines [...]
-  "Returns `...` concatenated with \"\\n\".
-
-  This is an alias to `(concat \"\\n\" ...)`. See [`concat`](#concat-sep-).
+  "Returns the concatenation of `...` with `\"\\n\"`.
 
   # Examples
 
   ```fennel
-  (import-macros {: assert= : lines} :soupmacs)
-  (assert= \"foo\\nbar\\nbaz\" (lines :foo :bar :baz))
+  (import-macros {: lines} :soupmacs)
+  (assert (= \"foo\\nbar\\nbaz\" (lines :foo :bar :baz)))
+  (assert (= \"\" (lines)))
   ```"
-  (concat "\n" ...))
+  `(-> (icollect [_# arg# (ipairs [,...])] arg#) (table.concat "\n")))
 
-;; ## 🧰 Misc
+;; ## ✅ Type Checking
 
-(fn nonnil [...]
-  "Expands to a expression filtering non-nil values of `...` to a new table.
+(fn of-type? [x ...]
+  "Expands to an expression returning if `x` is of any of given `...` types.
+
+  The expanded expression also returns the type of `x` as second return value.
 
   # Examples
 
   ```fennel
-  (import-macros {: nonnil} :soupmacs)
-  (fn sum [t] (accumulate [sum 0 _ n (ipairs t)] (+ sum n)))
-  (assert (= 8 (sum (nonnil -1 1 nil 3 5))))
+  (import-macros {: of-type?} :soupmacs)
+
+  (let [(cond type*) (of-type? 0 :boolean :number)]
+    (assert (= true cond))
+    (assert (= :number type*)))
+
+  (let [(cond type*) (of-type? [] :nil :string)]
+    (assert (= false cond))
+    (assert (= :table type*)))
   ```"
-  `(icollect [_# v# (values next [,...])] v#))
-
-(fn ordef [val def]
-  "Expands to an expression returning non-nil `val` or a `def` one.
-
-  # Examples
-
-  ```fennel
-  (import-macros {: ordef} :soupmacs)
-  (let [?t nil t {}] (assert (= t (ordef ?t t))))
-  (assert (= (ordef false true) false))
-  (assert (= (ordef 0 1) 0))
-  (assert (= (ordef \"\" :foo) \"\"))
-  ```"
-  `(if (not= nil ,val) ,val ,def))
-
-(fn whenot [cond ...]
-  "Expands to `(when (not cond) ...)`."
-  `(when (not ,cond) ,...))
+  `(let [x-type# (type ,x)] (values ,(any-of? `x-type# ...) x-type#)))
 
 ;; [Fennel]: https://fennel-lang.org
 
-{ : assert-not
-  : assert-not=
-  : assert=
-  : concat
+{ : -->
+  : any-of?
+  : assert-lazy
   : dec
   : inc
   : lines
-  : modcall
-  : modget
-  : nonnil
-  : oneof?
-  : ordef
-  : ty=
-  : whenot}
+  : of-type?
+  : or-default
+  : or-default-lazy}
