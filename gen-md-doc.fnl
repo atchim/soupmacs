@@ -35,7 +35,7 @@
   "Test and returns the Markdown documentation for the function content."
   (let
     [ hashes (: :# :rep (+ 1 cur-heading-level))
-      heading (-> "%s `%s %s` \n" (: :format hashes name params))
+      heading (-> "%s `%s %s`\n" (: :format hashes name params))
       (_ _ offset) (docs:find "\n\n(%s+)")
       docs (if offset (docs:gsub (.. "\n" offset) "\n") docs)
       docs (docs:gsub "```fennel%-no%-run\n" "```fennel\n")

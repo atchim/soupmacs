@@ -4,13 +4,13 @@
 
 ## ✔️ Assertion
 
-### `assert-lazy [cond err-msg-cb]` 
+### `assert-lazy [cond err-msg-cb]`
 
 Expands to a lazy assertion-like expression.
 
 The expanded expression evaluates the truthiness of `cond`. If `cond` is
 truthy, it's returned; otherwise, the error message is generated using
-`err-msg-cb` and an error is raised with that message.
+`err-msg-cb`, and an error is raised with that message.
 
 This can be useful to defer the evaluation of the error message until it's
 actually needed.
@@ -31,7 +31,7 @@ actually needed.
 
 ## ⁉️ Boolean Evaluation
 
-### `any-of? [x ...]` 
+### `any-of? [x ...]`
 
 Expands to an expression returning if `x` is equal to any value in `...`.
 
@@ -55,7 +55,7 @@ arguments in `...`.
 
 ## 🆗 Defaults
 
-### `or-default [value default]` 
+### `or-default [value default]`
 
 Expands to an expression returning non-nil `value` or a `default` one.
 
@@ -69,7 +69,7 @@ Expands to an expression returning non-nil `value` or a `default` one.
   (assert (= :baz (or-default bar :baz))))
 ```
 
-### `or-default-lazy [value default-cb]` 
+### `or-default-lazy [value default-cb]`
 
 Like `or-default`, but evaluates `default-cb` when `value` is `nil`.
 
@@ -87,7 +87,7 @@ Like `or-default`, but evaluates `default-cb` when `value` is `nil`.
 
 ## 📐 Math
 
-### `dec [x]` 
+### `dec [x]`
 
 Expands to an expression decrementing `x` by 1 and returning it.
 
@@ -100,7 +100,7 @@ Expands to an expression decrementing `x` by 1 and returning it.
 (assert (= -1 x))
 ```
 
-### `inc [x]` 
+### `inc [x]`
 
 Expands to an expression incrementing `x` by 1 and returning it.
 
@@ -115,7 +115,7 @@ Expands to an expression incrementing `x` by 1 and returning it.
 
 ## 🧩 Module Related
 
-### `--> [mod ...]` 
+### `--> [mod ...]`
 
 Expands to an access (and optionally a call) of an item of `mod`.
 
@@ -136,13 +136,14 @@ calling an item in Fennel.
 (--> :foo)                   ; require'foo'
 (--> :foo :bar)              ; require'foo'.bar
 (--> :foo :bar [])           ; require'foo'.bar()
-(--> :foo :bar [[]])         ; require'foo'.bar{}
+(--> :foo :bar [[]])         ; require'foo'.bar({})
 (--> :foo :bar [:baz :quux]) ; require'foo'.bar('baz', 'quux')
-````
+(--> :foo :bar :baz [:quux]) ; require'foo'.bar.baz('quux')
+```
 
 ## 🧵 String Manipulation
 
-### `lines [...]` 
+### `lines [...]`
 
 Returns the concatenation of `...` with `"\n"`.
 
@@ -156,9 +157,9 @@ Returns the concatenation of `...` with `"\n"`.
 
 ## ✅ Type Checking
 
-### `of-type? [x ...]` 
+### `of-type? [x ...]`
 
-Expands to an expression returning if `x` is of any of given `...` types.
+Expands to an expression returning if `x` is of given `...` types.
 
 The expanded expression also returns the type of `x` as second return value.
 

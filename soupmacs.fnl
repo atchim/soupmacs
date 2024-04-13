@@ -9,7 +9,7 @@
 
   The expanded expression evaluates the truthiness of `cond`. If `cond` is
   truthy, it's returned; otherwise, the error message is generated using
-  `err-msg-cb` and an error is raised with that message.
+  `err-msg-cb`, and an error is raised with that message.
 
   This can be useful to defer the evaluation of the error message until it's
   actually needed.
@@ -135,9 +135,10 @@
   (--> :foo)                   ; require'foo'
   (--> :foo :bar)              ; require'foo'.bar
   (--> :foo :bar [])           ; require'foo'.bar()
-  (--> :foo :bar [[]])         ; require'foo'.bar{}
+  (--> :foo :bar [[]])         ; require'foo'.bar({})
   (--> :foo :bar [:baz :quux]) ; require'foo'.bar('baz', 'quux')
-  ````"
+  (--> :foo :bar :baz [:quux]) ; require'foo'.bar.baz('quux')
+  ```"
 
   (let
     [ args [...]
@@ -145,10 +146,7 @@
       last-arg (. args args-len)
       call-args (sequence? last-arg)
       accesses [(unpack args 1 (when call-args (- args-len 1)))]
-      full-access
-      `(->
-        (require ,mod)
-        ,(unpack (icollect [_ access# (ipairs accesses)] `(. ,access#))))]
+      full-access `(-> (require ,mod) (. ,(unpack accesses)))]
     (if call-args `(,full-access ,(unpack call-args)) full-access)))
 
 ;; ## 🧵 String Manipulation
@@ -168,7 +166,7 @@
 ;; ## ✅ Type Checking
 
 (fn of-type? [x ...]
-  "Expands to an expression returning if `x` is of any of given `...` types.
+  "Expands to an expression returning if `x` is of given `...` types.
 
   The expanded expression also returns the type of `x` as second return value.
 
