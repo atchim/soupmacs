@@ -85,32 +85,6 @@ Like `or-default`, but evaluates `default-cb` when `value` is `nil`.
   (assert (= "I am lazy!" (or-default-lazy nil lazy-fn))))
 ```
 
-## 🤙 Function Call
-
-### `call [...]`
-
-Expands to a function call (with optional access) based on `...`.
-
-This macro requires at least two arguments: an access and a sequence. The
-last argument must always be a sequence containing the arguments for the
-function call. Any preceding arguments compose the access.
-
-#### Examples
-
-```fennel
-(import-macros {: call} :soupmacs)
-
-; Macro Call                 | Lua Equivalent
-(call foo [])                ; foo()
-(-> foo (call []))           ; foo()
-(call foo [:bar])            ; foo'bar'
-(call foo :bar [])           ; foo.bar()
-(call foo.bar [])            ; foo.bar()
-(call foo bar [])            ; foo[bar]()
-(call foo :bar [:baz :quux]) ; foo.bar('baz', 'quux')
-(call foo :bar :baz [:quux]) ; foo.bar.baz'quux'
-```
-
 ## 📐 Math
 
 ### `dec [x]`

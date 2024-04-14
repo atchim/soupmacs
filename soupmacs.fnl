@@ -85,40 +85,6 @@
   ```"
   `(if (not= nil ,value) ,value (,default-cb)))
 
-;; ## 🤙 Function Call
-
-(fn call [...]
-  "Expands to a function call (with optional access) based on `...`.
-
-  This macro requires at least two arguments: an access and a sequence. The
-  last argument must always be a sequence containing the arguments for the
-  function call. Any preceding arguments compose the access.
-
-  # Examples
-
-  ```fennel-no-run
-  (import-macros {: call} :soupmacs)
-
-  ; Macro Call                 | Lua Equivalent
-  (call foo [])                ; foo()
-  (-> foo (call []))           ; foo()
-  (call foo [:bar])            ; foo'bar'
-  (call foo :bar [])           ; foo.bar()
-  (call foo.bar [])            ; foo.bar()
-  (call foo bar [])            ; foo[bar]()
-  (call foo :bar [:baz :quux]) ; foo.bar('baz', 'quux')
-  (call foo :bar :baz [:quux]) ; foo.bar.baz'quux'
-  ```"
-  (let
-    [ args [...]
-      arg-len (length args)
-      _ (assert (>= arg-len 2))
-      last-arg (. args arg-len)
-      call-args (assert (sequence? last-arg))
-      accesses [(unpack args 1 (- arg-len 1))]
-      accesses `(. ,(unpack accesses))]
-    (list accesses (unpack call-args))))
-
 ;; ## 📐 Math
 
 (fn dec [x]
@@ -224,7 +190,6 @@
 { : -->
   : any-of?
   : assert-lazy
-  : call
   : dec
   : inc
   : lines
